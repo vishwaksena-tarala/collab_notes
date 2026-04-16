@@ -48,6 +48,15 @@ const noteSchema = new mongoose.Schema(
     versions: [versionSchema],
 
     /**
+     * Folder this note belongs to (optional).
+     */
+    folder: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Folder',
+      default: null,
+    },
+
+    /**
      * Soft-delete flag (future use).
      */
     isDeleted: {

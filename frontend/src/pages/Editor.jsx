@@ -4,7 +4,9 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import toast from 'react-hot-toast';
 import Navbar from '../components/Navbar';
-import { notesAPI } from '../services/api';
+import ImageGalleryModal from '../components/ImageGalleryModal';
+import DrawingCanvas from '../components/DrawingCanvas';
+import { notesAPI, uploadAPI } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import useSocket from '../hooks/useSocket';
 
@@ -17,6 +19,9 @@ import useSocket from '../hooks/useSocket';
  * - Active collaborator avatars
  * - Share modal
  * - Version history drawer
+ * - Image gallery modal
+ * - Drawing canvas (uploads PNG then inserts as markdown image)
+ * - Drag-and-drop image uploads
  */
 const Editor = () => {
   const { id: noteId } = useParams();
@@ -30,21 +35,27 @@ const Editor = () => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [lastSaved, setLastSaved] = useState(null);
+  const [uploading, setUploading] = useState(false);
 
   // ── UI state ────────────────────────────────────────────────────────
   const [view, setView] = useState('split');    // 'write' | 'split' | 'preview'
   const [shareOpen, setShareOpen] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
+  const [galleryOpen, setGalleryOpen] = useState(false);
+  const [drawingOpen, setDrawingOpen] = useState(false);
   const [shareInput, setShareInput] = useState('');
   const [shareLoading, setShareLoading] = useState(false);
+  const [draggingOver, setDraggingOver] = useState(false);
 
   // ── Collaboration state ─────────────────────────────────────────────
   const [activeUsers, setActiveUsers] = useState([]);
-  const [typingUsers, setTypingUsers] = useState([]);   // usernames currently typing
+  const [typingUsers, setTypingUsers] = useState([]);
 
   // ── Refs ────────────────────────────────────────────────────────────
   const autosaveTimerRef = useRef(null);
-  const remoteUpdateRef  = useRef(false);  // Flag to skip emitting on remote changes
+  const remoteUpdateRef  = useRef(false);
+  const fileInputRef     = useRef(null);
+  const textareaRef      = useRef(null);
 
   // ── Socket callbacks ────────────────────────────────────────────────
   const handleNoteUpdated = useCallback(({ content: remoteContent, title: remoteTitle }) => {
@@ -108,12 +119,33 @@ const Editor = () => {
     autosaveTimerRef.current = setTimeout(() => saveNote(newTitle, newContent), 1500);
   }, [saveNote]);
 
+  // ── Insert markdown at cursor (shared helper) ───────────────────────
+  const insertAtCursor = useCallback((md) => {
+    const textarea = textareaRef.current;
+    let newContent;
+    if (textarea) {
+      const start = textarea.selectionStart;
+      const end   = textarea.selectionEnd;
+      newContent = content.substring(0, start) + md + content.substring(end);
+      setContent(newContent);
+      setTimeout(() => {
+        textarea.selectionStart = textarea.selectionEnd = start + md.length;
+        textarea.focus();
+      }, 0);
+    } else {
+      newContent = content + '\n' + md;
+      setContent(newContent);
+    }
+    if (!remoteUpdateRef.current) {
+      emitUpdate(newContent, title);
+      scheduleAutosave(title, newContent);
+    }
+  }, [content, title, emitUpdate, scheduleAutosave]);
+
   // ── Handle content change ───────────────────────────────────────────
   const handleContentChange = (e) => {
     const val = e.target.value;
     setContent(val);
-
-    // Only emit and autosave if change originated locally
     if (!remoteUpdateRef.current) {
       emitUpdate(val, title);
       emitTyping();
@@ -131,6 +163,60 @@ const Editor = () => {
     }
     remoteUpdateRef.current = false;
   };
+
+  // ── Generic file uploader ────────────────────────────────────────────
+  const uploadAndInsert = async (file) => {
+    setUploading(true);
+    const toastId = toast.loading('Uploading file…');
+    try {
+      const { data } = await uploadAPI.uploadFile(file);
+      const isImage = file.type.startsWith('image/');
+      const md = isImage ? `![${file.name}](${data.url})` : `[${file.name}](${data.url})`;
+      insertAtCursor(md);
+      toast.success('File uploaded successfully', { id: toastId });
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to upload file', { id: toastId });
+    } finally {
+      setUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
+
+  const handleFileUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    await uploadAndInsert(file);
+  };
+
+  // ── Drag-and-drop image upload ───────────────────────────────────────
+  const handleDragOver = (e) => {
+    e.preventDefault();
+    setDraggingOver(true);
+  };
+
+  const handleDragLeave = () => setDraggingOver(false);
+
+  const handleDrop = async (e) => {
+    e.preventDefault();
+    setDraggingOver(false);
+    const file = e.dataTransfer.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith('image/') && file.type !== 'application/pdf') {
+      toast.error('Only images and PDFs can be dropped here');
+      return;
+    }
+    await uploadAndInsert(file);
+  };
+
+  // ── Drawing insertion callback ───────────────────────────────────────
+  const handleInsertDrawing = useCallback((md) => {
+    insertAtCursor(md);
+  }, [insertAtCursor]);
+
+  // ── Image gallery insertion callback ─────────────────────────────────
+  const handleInsertImage = useCallback((md) => {
+    insertAtCursor(md);
+  }, [insertAtCursor]);
 
   // ── Share note ───────────────────────────────────────────────────────
   const handleShare = async (e) => {
@@ -195,6 +281,7 @@ const Editor = () => {
       {/* ── Editor toolbar ── */}
       <div className="border-b border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 px-4 py-2">
         <div className="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-3">
+
           {/* View toggle */}
           <div className="flex gap-1 bg-gray-100 dark:bg-gray-800 rounded-lg p-1">
             {['write', 'split', 'preview'].map((v) => (
@@ -214,7 +301,8 @@ const Editor = () => {
           </div>
 
           {/* Status and actions */}
-          <div className="flex items-center gap-3 flex-wrap">
+          <div className="flex items-center gap-2 flex-wrap">
+
             {/* Typing indicator */}
             {typingUsers.length > 0 && (
               <span className="text-xs text-gray-400 dark:text-gray-500 italic animate-pulse">
@@ -259,12 +347,65 @@ const Editor = () => {
               </div>
             )}
 
+            {/* Divider */}
+            <div className="h-4 w-px bg-gray-200 dark:bg-gray-700" />
+
+            {/* 🖊 Draw button */}
+            <button
+              id="draw-btn"
+              onClick={() => setDrawingOpen(true)}
+              title="Open drawing canvas"
+              className="btn-secondary text-xs py-1.5 px-3 flex items-center gap-1"
+            >
+              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                  d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+              </svg>
+              Draw
+            </button>
+
+            {/* 🖼 Image gallery button */}
+            <button
+              id="gallery-btn"
+              onClick={() => setGalleryOpen(true)}
+              title="Insert image from gallery"
+              className="btn-secondary text-xs py-1.5 px-3 flex items-center gap-1"
+            >
+              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                  d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+              </svg>
+              Image
+            </button>
+
+            {/* File upload (PDF / any) */}
+            <input
+              type="file"
+              ref={fileInputRef}
+              onChange={handleFileUpload}
+              className="hidden"
+              accept="image/jpeg,image/png,image/gif,image/webp,application/pdf"
+            />
+            <button
+              id="upload-btn"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={uploading}
+              title="Upload a file (image or PDF)"
+              className={`btn-secondary text-xs py-1.5 px-3 flex items-center gap-1 ${uploading ? 'opacity-50 cursor-not-allowed' : ''}`}
+            >
+              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                  d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
+              </svg>
+              {uploading ? 'Uploading…' : 'Upload'}
+            </button>
+
             {/* Version history */}
             {note?.versions?.length > 0 && (
               <button
                 id="history-btn"
                 onClick={() => setHistoryOpen(true)}
-                className="btn-secondary text-xs py-1.5 px-3"
+                className="btn-secondary text-xs py-1.5 px-3 flex items-center gap-1"
               >
                 <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
@@ -279,7 +420,7 @@ const Editor = () => {
               <button
                 id="share-btn"
                 onClick={() => setShareOpen(true)}
-                className="btn-primary text-xs py-1.5 px-3"
+                className="btn-primary text-xs py-1.5 px-3 flex items-center gap-1"
               >
                 <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
@@ -309,34 +450,27 @@ const Editor = () => {
 
       {/* ── Editor panes ── */}
       <div className="flex-1 flex overflow-hidden max-w-7xl w-full mx-auto">
+
         {/* Write pane */}
         {(view === 'write' || view === 'split') && (
           <div className={`flex flex-col ${view === 'split' ? 'w-1/2 border-r border-gray-200 dark:border-gray-800' : 'w-full'}`}>
-            <div className="px-4 py-2 border-b border-gray-100 dark:border-gray-800 bg-gray-50 dark:bg-gray-900/50">
+            <div className="px-4 py-2 border-b border-gray-100 dark:border-gray-800 bg-gray-50 dark:bg-gray-900/50 flex items-center justify-between">
               <span className="text-xs font-medium text-gray-400 uppercase tracking-wider">Markdown</span>
+              <span className="text-xs text-gray-300 dark:text-gray-600">Drop images here to upload</span>
             </div>
             <textarea
               id="note-content"
+              ref={textareaRef}
               value={content}
               onChange={handleContentChange}
-              placeholder="Start writing in markdown…
-
-# Heading 1
-## Heading 2
-
-**Bold**, *italic*, `code`
-
-- List item 1
-- List item 2
-
-> Blockquote
-
-```js
-console.log('Hello!');
-```"
-              className="flex-1 p-5 resize-none bg-white dark:bg-gray-950 text-gray-900 dark:text-gray-100
+              onDragOver={handleDragOver}
+              onDragLeave={handleDragLeave}
+              onDrop={handleDrop}
+              placeholder={`Start writing in markdown…\n\n# Heading 1\n## Heading 2\n\n**Bold**, *italic*, \`code\`\n\n- List item 1\n- List item 2\n\n> Blockquote\n\n\`\`\`js\nconsole.log('Hello!');\n\`\`\``}
+              className={`flex-1 p-5 resize-none bg-white dark:bg-gray-950 text-gray-900 dark:text-gray-100
                          font-mono text-sm leading-relaxed outline-none border-none
-                         placeholder-gray-300 dark:placeholder-gray-700"
+                         placeholder-gray-300 dark:placeholder-gray-700 transition-colors
+                         ${draggingOver ? 'bg-brand-50 dark:bg-brand-950/20 ring-2 ring-inset ring-brand-400' : ''}`}
             />
           </div>
         )}
@@ -393,7 +527,6 @@ console.log('Hello!');
               </button>
             </div>
 
-            {/* Current collaborators */}
             {note?.collaborators?.length > 0 && (
               <div className="mb-4">
                 <p className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-2 uppercase tracking-wider">
@@ -422,12 +555,7 @@ console.log('Hello!');
                 className="input flex-1"
                 required
               />
-              <button
-                id="share-submit"
-                type="submit"
-                disabled={shareLoading}
-                className="btn-primary shrink-0"
-              >
+              <button id="share-submit" type="submit" disabled={shareLoading} className="btn-primary shrink-0">
                 {shareLoading ? 'Adding…' : 'Add'}
               </button>
             </form>
@@ -439,8 +567,7 @@ console.log('Hello!');
       {/* ── Version History Drawer ── */}
       {historyOpen && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-end sm:items-center justify-center sm:justify-end z-50">
-          <div className="glass w-full sm:w-96 h-[70vh] sm:h-full sm:max-h-screen rounded-t-2xl sm:rounded-none sm:rounded-l-2xl
-                         flex flex-col shadow-2xl">
+          <div className="glass w-full sm:w-96 h-[70vh] sm:h-full sm:max-h-screen rounded-t-2xl sm:rounded-none sm:rounded-l-2xl flex flex-col shadow-2xl">
             <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
               <h3 className="text-base font-semibold text-gray-900 dark:text-white">Version History</h3>
               <button onClick={() => setHistoryOpen(false)} className="text-gray-400 hover:text-gray-600">
@@ -476,6 +603,22 @@ console.log('Hello!');
             </div>
           </div>
         </div>
+      )}
+
+      {/* ── Image Gallery Modal ── */}
+      {galleryOpen && (
+        <ImageGalleryModal
+          onInsert={handleInsertImage}
+          onClose={() => setGalleryOpen(false)}
+        />
+      )}
+
+      {/* ── Drawing Canvas ── */}
+      {drawingOpen && (
+        <DrawingCanvas
+          onInsert={handleInsertDrawing}
+          onClose={() => setDrawingOpen(false)}
+        />
       )}
     </div>
   );

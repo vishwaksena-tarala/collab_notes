@@ -50,9 +50,30 @@ export const notesAPI = {
   getById:        (id)         => api.get(`/api/notes/${id}`),
   create:         (data)       => api.post('/api/notes', data),
   update:         (id, data)   => api.put(`/api/notes/${id}`, data),
+  move:           (id, folder) => api.put(`/api/notes/${id}`, { folder }),
   delete:         (id)         => api.delete(`/api/notes/${id}`),
   share:          (id, data)   => api.post(`/api/notes/${id}/share`, data),
   restoreVersion: (id, data)   => api.post(`/api/notes/${id}/restore`, data),
+};
+
+// ── Folders API ───────────────────────────────────────────────────────
+export const foldersAPI = {
+  getAll:  ()           => api.get('/api/folders'),
+  create:  (data)       => api.post('/api/folders', data),
+  update:  (id, data)   => api.put(`/api/folders/${id}`, data),
+  delete:  (id)         => api.delete(`/api/folders/${id}`),
+};
+
+// ── Upload API ────────────────────────────────────────────────────────
+export const uploadAPI = {
+  uploadFile: (file) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    return api.post('/api/upload', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+  },
+  getImages: () => api.get('/api/upload/images'),
 };
 
 export default api;

@@ -78,21 +78,24 @@ const createNote = async (req, res) => {
     return res.status(400).json({ message: errors.array()[0].msg });
   }
 
-  const { title, content } = req.body;
+  const { title, content, folder } = req.body;
 
   try {
     const note = await Note.create({
       title: title || 'Untitled Note',
       content: content || '',
       owner: req.user._id,
+      folder: folder || null,
     });
 
     await note.populate('owner', 'username email');
 
     res.status(201).json({ note });
   } catch (error) {
-    console.error('createNote error:', error);
-    res.status(500).json({ message: 'Failed to create note' });
+    console.error('============== CREATE NOTE ERROR ==============');
+    console.error(error);
+    console.error('=============================================');
+    res.status(500).json({ message: `Failed to create note: ${error.message}` });
   }
 };
 
@@ -113,7 +116,10 @@ const updateNote = async (req, res) => {
       return res.status(403).json({ message: 'Access denied' });
     }
 
-    const { title, content } = req.body;
+    const { title, content, folder } = req.body;
+
+    // Move note to a different folder (or un-folder)
+    if (folder !== undefined) note.folder = folder || null;
 
     // Save current content to version history before overwriting
     if (content !== undefined && content !== note.content) {

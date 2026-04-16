@@ -7,7 +7,10 @@ const cors = require('cors');
 const connectDB = require('./config/db');
 const authRoutes = require('./routes/authRoutes');
 const noteRoutes = require('./routes/noteRoutes');
+const folderRoutes = require('./routes/folderRoutes');
 const socketHandler = require('./socket/socketHandler');
+const uploadRoutes = require('./routes/uploadRoutes');
+const path = require('path');
 
 // ─── App & Server Setup ───────────────────────────────────────────────────────
 const app = express();
@@ -35,9 +38,14 @@ app.use(
 app.use(express.json({ limit: '2mb' }));    // Parse JSON bodies (max 2 MB)
 app.use(express.urlencoded({ extended: true }));
 
+// Serve the uploads directory statically
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+
 // ─── Routes ───────────────────────────────────────────────────────────────────
 app.use('/api/auth', authRoutes);
 app.use('/api/notes', noteRoutes);
+app.use('/api/folders', folderRoutes);
+app.use('/api/upload', uploadRoutes);
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {
