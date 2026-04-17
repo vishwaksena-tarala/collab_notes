@@ -101,7 +101,8 @@ const DrawingCanvas = ({ onInsert, onClose }) => {
       const blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/png'));
       const file = new File([blob], `drawing-${Date.now()}.png`, { type: 'image/png' });
       const { data } = await uploadAPI.uploadFile(file);
-      const md = `![drawing](${data.url})`;
+      const decodedUrl = encodeURI(data.url);
+      const md = `![drawing](${decodedUrl})`;
       toast.success('Drawing inserted!', { id: toastId });
       onInsert(md);
       onClose();

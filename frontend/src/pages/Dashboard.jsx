@@ -39,8 +39,11 @@ const Dashboard = () => {
           notesAPI.getAll(),
           foldersAPI.getAll(),
         ]);
-        setNotes(notesRes.data.notes);
-        setFolders(foldersRes.data.folders);
+        // Defensive: accept both wrapped { notes: [] } and raw [] shapes
+        const fetchedNotes   = notesRes.data?.notes   ?? notesRes.data   ?? [];
+        const fetchedFolders = foldersRes.data?.folders ?? foldersRes.data ?? [];
+        setNotes(Array.isArray(fetchedNotes)   ? fetchedNotes   : []);
+        setFolders(Array.isArray(fetchedFolders) ? fetchedFolders : []);
       } catch {
         toast.error('Failed to load notes');
       } finally {
@@ -69,7 +72,9 @@ const Dashboard = () => {
       const payload = { title: 'Untitled Note', content: '' };
       if (selectedFolder) payload.folder = selectedFolder;
       const { data } = await notesAPI.create(payload);
-      navigate(`/editor/${data.note._id}`);
+      // Spring Boot serializes @Id as 'id'; Node.js used '_id'. Accept either.
+      const noteId = data.note?.id || data.note?._id;
+      navigate(`/editor/${noteId}`);
     } catch (err) {
       toast.error(err.response?.data?.message || 'Failed to create note');
       setCreating(false);
@@ -141,7 +146,8 @@ const Dashboard = () => {
 
   // ── Filter notes ─────────────────────────────────────────────────────
   const filteredNotes = useMemo(() => {
-    let result = notes;
+    // Guard: notes must be an array (avoids crash if API shape is unexpected)
+    let result = Array.isArray(notes) ? notes : [];
 
     if (tab === 'mine') {
       result = result.filter(
@@ -167,8 +173,9 @@ const Dashboard = () => {
     return result;
   }, [notes, tab, search, user, selectedFolder]);
 
-  const myCount     = notes.filter((n) => n.owner?._id === user?.id || n.owner === user?.id).length;
-  const sharedCount = notes.filter((n) => n.owner?._id !== user?.id && n.owner !== user?.id).length;
+  const safeNotes   = Array.isArray(notes) ? notes : [];
+  const myCount     = safeNotes.filter((n) => n.owner?._id === user?.id || n.owner === user?.id).length;
+  const sharedCount = safeNotes.filter((n) => n.owner?._id !== user?.id && n.owner !== user?.id).length;
 
   const activeFolderLabel = selectedFolder === 'unfiled'
     ? 'Unfiled'

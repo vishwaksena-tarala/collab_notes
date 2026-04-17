@@ -18,10 +18,12 @@ export const getSocket = () => {
     if (socket) socket.disconnect();
 
     socket = io(SOCKET_URL, {
-      auth: { token },       // Sent to server via socket.handshake.auth.token
+      auth: { token },
       transports: ['websocket', 'polling'],
-      reconnectionAttempts: 5,
-      reconnectionDelay: 1000,
+      // Spring Boot uses native WebSocket, not Socket.IO.
+      // Disable reconnection to avoid console spam until a WebSocket
+      // endpoint is implemented on the backend.
+      reconnection: false,
       autoConnect: true,
     });
 
@@ -30,7 +32,8 @@ export const getSocket = () => {
     });
 
     socket.on('connect_error', (err) => {
-      console.warn('🔴 Socket connection error:', err.message);
+      // Only warn once — reconnection is disabled so this fires just once
+      console.warn('🟡 Real-time collaboration unavailable:', err.message);
     });
 
     socket.on('disconnect', (reason) => {

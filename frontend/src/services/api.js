@@ -2,11 +2,12 @@ import axios from 'axios';
 
 /**
  * Axios instance pre-configured with base URL.
+ * FIX: Changed port from 5000 → 8080 to match Spring Boot default port.
  * The request interceptor automatically attaches the JWT
  * from localStorage to every outgoing request.
  */
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || 'http://localhost:5000',
+  baseURL: import.meta.env.VITE_API_URL || 'http://localhost:8080',
   headers: { 'Content-Type': 'application/json' },
   timeout: 10000,
 });
@@ -69,11 +70,13 @@ export const uploadAPI = {
   uploadFile: (file) => {
     const formData = new FormData();
     formData.append('file', file);
-    return api.post('/api/upload', formData, {
+    // FIX: was /api/upload → corrected to /api/uploads to match UploadController mapping
+    return api.post('/api/uploads', formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
     });
   },
-  getImages: () => api.get('/api/upload/images'),
+  // FIX: was /api/upload/images → corrected to /api/uploads/images
+  getImages: () => api.get('/api/uploads/images'),
 };
 
 export default api;

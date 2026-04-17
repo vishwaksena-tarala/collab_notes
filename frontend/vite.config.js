@@ -6,9 +6,14 @@ export default defineConfig({
   server: {
     port: 5173,
     proxy: {
-      // Proxy API calls to backend during development
+      // FIX: Proxy target updated from 5000 (Node.js) to 8080 (Spring Boot)
       '/api': {
-        target: 'http://localhost:5000',
+        target: 'http://localhost:8080',
+        changeOrigin: true,
+      },
+      // Also proxy /uploads for file serving from Spring Boot
+      '/uploads': {
+        target: 'http://localhost:8080',
         changeOrigin: true,
       },
     },

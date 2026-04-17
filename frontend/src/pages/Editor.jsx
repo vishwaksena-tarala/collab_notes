@@ -171,7 +171,8 @@ const Editor = () => {
     try {
       const { data } = await uploadAPI.uploadFile(file);
       const isImage = file.type.startsWith('image/');
-      const md = isImage ? `![${file.name}](${data.url})` : `[${file.name}](${data.url})`;
+      const encodedUrl = encodeURI(data.url);
+      const md = isImage ? `![${file.name}](${encodedUrl})` : `[${file.name}](${encodedUrl})`;
       insertAtCursor(md);
       toast.success('File uploaded successfully', { id: toastId });
     } catch (err) {

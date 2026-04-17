@@ -17,7 +17,14 @@ const ImageGalleryModal = ({ onInsert, onClose }) => {
     const load = async () => {
       try {
         const { data } = await uploadAPI.getImages();
-        setImages(data.images);
+        // The Java backend returns an array of string URLs. Map them to the object shape the UI needs.
+        const mapped = (data.images || []).map(item => {
+          if (typeof item === 'string') {
+            return { url: item, filename: item.split('/').pop() };
+          }
+          return item; // Fallback if it's already an object
+        });
+        setImages(mapped);
       } catch {
         toast.error('Failed to load image gallery');
       } finally {
@@ -50,7 +57,8 @@ const ImageGalleryModal = ({ onInsert, onClose }) => {
   };
 
   const handleSelect = (img) => {
-    const md = `![${img.filename}](${img.url})`;
+    const encodedUrl = encodeURI(img.url);
+    const md = `![${img.filename}](${encodedUrl})`;
     onInsert(md);
     onClose();
   };

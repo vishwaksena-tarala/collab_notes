@@ -4,4 +4,6 @@ dist/
 .env.local 
 *.log 
 backend/uploads/
+backend-java/target/
+.vscode/settings.json
 
