@@ -1,0 +1,910 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CollabNotes — Project Presentation</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --purple: #8b5cf6;
+      --blue: #3b82f6;
+      --cyan: #06b6d4;
+      --pink: #ec4899;
+      --green: #22c55e;
+      --navy: #0f172a;
+      --navy2: #1e293b;
+      --navy3: #334155;
+      --text: #f1f5f9;
+      --muted: #94a3b8;
+    }
+
+    html, body {
+      width: 100%; height: 100%;
+      background: var(--navy);
+      font-family: 'Inter', sans-serif;
+      color: var(--text);
+      overflow: hidden;
+    }
+
+    /* ─── Slide Container ─── */
+    #deck {
+      width: 100vw; height: 100vh;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .slide {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 60px 80px;
+      opacity: 0;
+      transform: translateX(100%);
+      transition: opacity 0.5s ease, transform 0.5s cubic-bezier(0.4,0,0.2,1);
+      pointer-events: none;
+    }
+    .slide.active {
+      opacity: 1;
+      transform: translateX(0);
+      pointer-events: all;
+    }
+    .slide.exit {
+      opacity: 0;
+      transform: translateX(-100%);
+    }
+
+    /* ─── Backgrounds per slide ─── */
+    .bg-hero      { background: radial-gradient(ellipse at 30% 40%, #1e0a4e 0%, var(--navy) 60%); }
+    .bg-intro     { background: radial-gradient(ellipse at 70% 20%, #0c1a3e 0%, var(--navy) 70%); }
+    .bg-unique    { background: radial-gradient(ellipse at 20% 80%, #0e1a2e 0%, #0a0f1e 70%); }
+    .bg-working   { background: radial-gradient(ellipse at 60% 60%, #150e2e 0%, var(--navy) 70%); }
+    .bg-features  { background: radial-gradient(ellipse at 50% 10%, #0e1f34 0%, var(--navy) 70%); }
+    .bg-arch      { background: radial-gradient(ellipse at 80% 50%, #0a1628 0%, var(--navy) 70%); }
+    .bg-conclusion{ background: radial-gradient(ellipse at 50% 50%, #1a0a2e 0%, var(--navy) 70%); }
+
+    /* ─── Grid lines overlay ─── */
+    .slide::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background-image:
+        linear-gradient(rgba(139,92,246,0.04) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(139,92,246,0.04) 1px, transparent 1px);
+      background-size: 60px 60px;
+      pointer-events: none;
+    }
+
+    /* ─── Decorative blobs ─── */
+    .blob {
+      position: absolute;
+      border-radius: 50%;
+      filter: blur(80px);
+      opacity: 0.25;
+      pointer-events: none;
+    }
+
+    /* ─── Typography ─── */
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: rgba(139,92,246,0.15);
+      border: 1px solid rgba(139,92,246,0.35);
+      border-radius: 999px;
+      padding: 8px 22px;
+      font-size: 15px;
+      font-weight: 600;
+      color: var(--purple);
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      margin-bottom: 24px;
+    }
+
+    h1 {
+      font-size: clamp(3.2rem, 6vw, 5.5rem);
+      font-weight: 900;
+      line-height: 1.1;
+      text-align: center;
+      letter-spacing: -0.02em;
+    }
+    h2 {
+      font-size: clamp(2.2rem, 3.5vw, 3.2rem);
+      font-weight: 800;
+      line-height: 1.2;
+      letter-spacing: -0.02em;
+    }
+    h3 { font-size: 1.25rem; font-weight: 700; }
+
+    .gradient-text {
+      background: linear-gradient(135deg, var(--purple) 0%, var(--blue) 50%, var(--cyan) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    .gradient-text-warm {
+      background: linear-gradient(135deg, var(--purple) 0%, var(--pink) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    p.lead {
+      font-size: clamp(1.1rem, 2vw, 1.45rem);
+      color: var(--muted);
+      line-height: 1.7;
+      text-align: center;
+      max-width: 780px;
+    }
+
+    /* ─── Cards ─── */
+    .card-grid {
+      display: grid;
+      gap: 18px;
+      width: 100%;
+    }
+    .card-grid.cols-2 { grid-template-columns: repeat(2, 1fr); }
+    .card-grid.cols-3 { grid-template-columns: repeat(3, 1fr); }
+    .card-grid.cols-4 { grid-template-columns: repeat(4, 1fr); }
+
+    .card {
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 16px;
+      padding: 26px;
+      backdrop-filter: blur(10px);
+      transition: border-color 0.3s, transform 0.3s, background 0.3s;
+    }
+    .card:hover {
+      border-color: rgba(139,92,246,0.4);
+      background: rgba(139,92,246,0.07);
+      transform: translateY(-3px);
+    }
+    .card .icon {
+      font-size: 2.2rem;
+      margin-bottom: 12px;
+      display: block;
+    }
+    .card h3 { margin-bottom: 8px; font-size: 1.15rem; }
+    .card p { font-size: 0.97rem; color: var(--muted); line-height: 1.65; }
+
+    /* ─── Chips / Tags ─── */
+    .chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 7px 16px;
+      border-radius: 999px;
+      font-size: 14px;
+      font-weight: 600;
+      border: 1px solid;
+    }
+    .chip-purple { background: rgba(139,92,246,0.15); border-color: rgba(139,92,246,0.4); color: #c4b5fd; }
+    .chip-blue   { background: rgba(59,130,246,0.15); border-color: rgba(59,130,246,0.4); color: #93c5fd; }
+    .chip-cyan   { background: rgba(6,182,212,0.15);  border-color: rgba(6,182,212,0.4);  color: #67e8f9; }
+    .chip-pink   { background: rgba(236,72,153,0.15); border-color: rgba(236,72,153,0.4); color: #f9a8d4; }
+    .chip-green  { background: rgba(34,197,94,0.15);  border-color: rgba(34,197,94,0.4);  color: #86efac; }
+    .chip-orange { background: rgba(251,146,60,0.15); border-color: rgba(251,146,60,0.4); color: #fdba74; }
+
+    /* ─── Divider ─── */
+    .divider {
+      width: 60px; height: 4px;
+      background: linear-gradient(90deg, var(--purple), var(--blue));
+      border-radius: 2px;
+      margin: 16px auto;
+    }
+
+    /* ─── Slide 1: Hero ─── */
+    #slide-1 .hero-logo {
+      width: 72px; height: 72px;
+      background: linear-gradient(135deg, var(--purple), var(--blue));
+      border-radius: 20px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 2rem;
+      margin-bottom: 28px;
+      box-shadow: 0 0 40px rgba(139,92,246,0.4);
+    }
+    #slide-1 .subtitle {
+      font-size: 1.3rem;
+      color: var(--muted);
+      margin-top: 20px;
+      text-align: center;
+    }
+    #slide-1 .tags {
+      display: flex; gap: 10px; flex-wrap: wrap; justify-content: center;
+      margin-top: 36px;
+    }
+    #slide-1 .presented-by {
+      margin-top: 50px;
+      font-size: 14px;
+      color: #475569;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    /* ─── Flow diagram (Working Model) ─── */
+    .flow {
+      display: flex;
+      align-items: center;
+      gap: 0;
+      width: 100%;
+      justify-content: center;
+    }
+    .flow-node {
+      flex: 1;
+      background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 14px;
+      padding: 22px 16px;
+      text-align: center;
+      position: relative;
+    }
+    .flow-node .fn-icon { font-size: 2.2rem; margin-bottom: 10px; }
+    .flow-node h3 { font-size: 1.05rem; margin-bottom: 6px; }
+    .flow-node p { font-size: 0.88rem; color: var(--muted); line-height: 1.5; }
+    .flow-arrow {
+      color: var(--purple);
+      font-size: 1.8rem;
+      margin: 0 8px;
+      flex-shrink: 0;
+    }
+
+    /* ─── Tech stack ─── */
+    .tech-row {
+      display: flex;
+      align-items: flex-start;
+      gap: 16px;
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 16px;
+      padding: 18px 24px;
+    }
+    .tech-row .layer-label {
+      min-width: 120px;
+      font-size: 13px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--purple);
+      padding-top: 4px;
+    }
+    .tech-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+
+    /* ─── Unique points ─── */
+    .unique-item {
+      display: flex;
+      gap: 18px;
+      align-items: flex-start;
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 14px;
+      padding: 20px 24px;
+    }
+    .unique-item .u-num {
+      width: 42px; height: 42px;
+      background: linear-gradient(135deg, var(--purple), var(--blue));
+      border-radius: 10px;
+      display: flex; align-items: center; justify-content: center;
+      font-weight: 800;
+      font-size: 1.05rem;
+      flex-shrink: 0;
+    }
+    .unique-item h3 { margin-bottom: 6px; font-size: 1.15rem; }
+    .unique-item p  { font-size: 0.97rem; color: var(--muted); line-height: 1.6; }
+
+    /* ─── Navigation ─── */
+    #nav {
+      position: fixed;
+      bottom: 30px;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      background: rgba(15,23,42,0.85);
+      backdrop-filter: blur(16px);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 999px;
+      padding: 10px 20px;
+      z-index: 100;
+    }
+    #nav button {
+      background: none;
+      border: none;
+      color: var(--muted);
+      cursor: pointer;
+      padding: 8px 14px;
+      border-radius: 999px;
+      font-size: 14px;
+      font-family: 'Inter', sans-serif;
+      font-weight: 600;
+      transition: all 0.2s;
+    }
+    #nav button:hover { background: rgba(139,92,246,0.15); color: var(--purple); }
+    #nav button:disabled { opacity: 0.3; cursor: default; }
+    #slide-counter {
+      font-size: 13px;
+      color: var(--muted);
+      min-width: 60px;
+      text-align: center;
+      font-weight: 500;
+    }
+    .dot-nav {
+      display: flex;
+      gap: 6px;
+      align-items: center;
+    }
+    .dot {
+      width: 6px; height: 6px;
+      border-radius: 50%;
+      background: var(--navy3);
+      transition: all 0.3s;
+      cursor: pointer;
+    }
+    .dot.active { background: var(--purple); width: 20px; border-radius: 3px; }
+
+    /* ─── Slide number top-right ─── */
+    #slide-num-badge {
+      position: fixed;
+      top: 24px; right: 32px;
+      font-size: 12px;
+      color: #334155;
+      font-weight: 600;
+      letter-spacing: 0.06em;
+      z-index: 99;
+    }
+
+    /* ─── Progress bar ─── */
+    #progress {
+      position: fixed;
+      top: 0; left: 0;
+      height: 3px;
+      background: linear-gradient(90deg, var(--purple), var(--cyan));
+      transition: width 0.4s ease;
+      z-index: 200;
+      border-radius: 0 2px 2px 0;
+    }
+
+    /* ─── Conclusion final ─── */
+    .conclusion-grid {
+      display: grid;
+      grid-template-columns: repeat(3,1fr);
+      gap: 14px;
+      width: 100%;
+      margin-top: 24px;
+    }
+    .c-card {
+      background: rgba(139,92,246,0.07);
+      border: 1px solid rgba(139,92,246,0.2);
+      border-radius: 14px;
+      padding: 24px;
+      text-align: center;
+    }
+    .c-card .c-icon { font-size: 2.4rem; margin-bottom: 12px; }
+    .c-card h3 { font-size: 1.15rem; margin-bottom: 6px; }
+    .c-card p { font-size: 0.97rem; color: var(--muted); line-height: 1.6; }
+
+    /* ─── Animations ─── */
+    @keyframes float {
+      0%,100% { transform: translateY(0); }
+      50%      { transform: translateY(-14px); }
+    }
+    @keyframes pulse-glow {
+      0%,100% { box-shadow: 0 0 30px rgba(139,92,246,0.3); }
+      50%      { box-shadow: 0 0 60px rgba(139,92,246,0.6); }
+    }
+    .float { animation: float 4s ease-in-out infinite; }
+    .pulse-glow { animation: pulse-glow 3s ease-in-out infinite; }
+
+    /* slide content fade-in stagger */
+    .slide.active .stagger > * {
+      animation: fadeUp 0.5s ease both;
+    }
+    .slide.active .stagger > *:nth-child(1) { animation-delay: 0.1s; }
+    .slide.active .stagger > *:nth-child(2) { animation-delay: 0.2s; }
+    .slide.active .stagger > *:nth-child(3) { animation-delay: 0.3s; }
+    .slide.active .stagger > *:nth-child(4) { animation-delay: 0.4s; }
+    .slide.active .stagger > *:nth-child(5) { animation-delay: 0.5s; }
+    .slide.active .stagger > *:nth-child(6) { animation-delay: 0.6s; }
+    @keyframes fadeUp {
+      from { opacity:0; transform:translateY(24px); }
+      to   { opacity:1; transform:translateY(0); }
+    }
+
+    /* ─── Keyboard hint ─── */
+    .kbd-hint {
+      position: fixed;
+      top: 24px; left: 32px;
+      font-size: 13px;
+      color: #334155;
+      z-index: 99;
+    }
+    kbd {
+      display: inline-block;
+      padding: 2px 6px;
+      background: #1e293b;
+      border: 1px solid #334155;
+      border-radius: 4px;
+      font-family: 'Fira Code', monospace;
+      font-size: 12px;
+    }
+  </style>
+</head>
+<body>
+
+<div id="progress"></div>
+<div id="slide-num-badge">slide <span id="cur">1</span> / 7</div>
+<div class="kbd-hint">Use <kbd>←</kbd> <kbd>→</kbd> or click arrows to navigate</div>
+
+<div id="deck">
+
+  <!-- ══════════════════════════════════════════════════════
+       SLIDE 1 — HERO / TITLE
+  ══════════════════════════════════════════════════════ -->
+  <div class="slide bg-hero active" id="slide-1">
+    <!-- blobs -->
+    <div class="blob" style="width:500px;height:500px;background:var(--purple);top:-150px;left:-100px;"></div>
+    <div class="blob" style="width:400px;height:400px;background:var(--blue);bottom:-100px;right:-80px;"></div>
+
+    <div class="stagger" style="display:flex;flex-direction:column;align-items:center;">
+      <div class="hero-logo pulse-glow float">📝</div>
+      <div class="badge">🎓 Project Presentation · 2026</div>
+      <h1>Collab<span class="gradient-text">Notes</span></h1>
+      <p class="lead" style="margin-top:16px;">
+        A real-time collaborative note-taking platform where teams create,
+        edit, and share Markdown notes simultaneously — with live synchronisation,
+        version control, and rich media support.
+      </p>
+      <div class="tags">
+        <span class="chip chip-purple">React 18</span>
+        <span class="chip chip-blue">Spring Boot 3.2</span>
+        <span class="chip chip-cyan">MongoDB</span>
+        <span class="chip chip-green">Socket.IO</span>
+        <span class="chip chip-pink">JWT Auth</span>
+        <span class="chip chip-orange">Markdown</span>
+      </div>
+      <p class="presented-by">Built with ❤️ · Full-Stack Collaborative Web Application</p>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════
+       SLIDE 2 — INTRODUCTION
+  ══════════════════════════════════════════════════════ -->
+  <div class="slide bg-intro" id="slide-2">
+    <div class="blob" style="width:350px;height:350px;background:var(--blue);top:-80px;right:-60px;opacity:0.2;"></div>
+    <div class="blob" style="width:250px;height:250px;background:var(--purple);bottom:-60px;left:-40px;opacity:0.15;"></div>
+
+    <div class="stagger" style="width:100%;max-width:1000px;">
+      <div style="text-align:center;margin-bottom:36px;">
+        <div class="badge">01 · Introduction</div>
+        <h2>What is <span class="gradient-text">CollabNotes</span>?</h2>
+        <div class="divider"></div>
+      </div>
+
+      <div class="card-grid cols-2">
+        <div style="display:flex;flex-direction:column;gap:16px;">
+          <div class="card">
+            <span class="icon">🔍</span>
+            <h3>The Problem</h3>
+            <p>Traditional note-taking tools are siloed and single-user. Teams struggle to collaborate without constant manual file sharing, merge conflicts, and outdated copies.</p>
+          </div>
+          <div class="card">
+            <span class="icon">💡</span>
+            <h3>Our Solution</h3>
+            <p>CollabNotes provides a web-based workspace where multiple users edit notes simultaneously in real-time — with automatic saving, live presence indicators, and organised folders.</p>
+          </div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:16px;">
+          <div class="card">
+            <span class="icon">🎯</span>
+            <h3>Target Audience</h3>
+            <p>Students, research teams, developers, and professionals who need a lightweight but powerful shared workspace for knowledge management.</p>
+          </div>
+          <div class="card">
+            <span class="icon">🌐</span>
+            <h3>Platform</h3>
+            <p>Fully browser-based web application. No installation needed. Access from any device with secure JWT authentication and persistent cloud storage via MongoDB.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════
+       SLIDE 3 — UNIQUENESS
+  ══════════════════════════════════════════════════════ -->
+  <div class="slide bg-unique" id="slide-3">
+    <div class="blob" style="width:400px;height:400px;background:var(--pink);bottom:-100px;right:-80px;opacity:0.15;"></div>
+    <div class="blob" style="width:300px;height:300px;background:var(--cyan);top:-60px;left:-60px;opacity:0.12;"></div>
+
+    <div class="stagger" style="width:100%;max-width:1000px;">
+      <div style="text-align:center;margin-bottom:32px;">
+        <div class="badge">02 · Uniqueness</div>
+        <h2>What Makes It <span class="gradient-text-warm">Stand Out?</span></h2>
+        <div class="divider"></div>
+      </div>
+
+      <div style="display:flex;flex-direction:column;gap:14px;">
+        <div class="unique-item">
+          <div class="u-num">1</div>
+          <div>
+            <h3>Live Collaboration with Presence Awareness</h3>
+            <p>Real-time note syncing via Socket.IO with animated typing indicators and avatar badges showing exactly who is currently editing — no refresh needed.</p>
+          </div>
+        </div>
+        <div class="unique-item">
+          <div class="u-num">2</div>
+          <div>
+            <h3>Integrated Drawing Canvas → Markdown Image</h3>
+            <p>Unique in-browser freehand drawing tool that auto-uploads the canvas as a PNG and inserts it directly as a Markdown image into the note — no external tool required.</p>
+          </div>
+        </div>
+        <div class="unique-item">
+          <div class="u-num">3</div>
+          <div>
+            <h3>Version History with One-Click Restore</h3>
+            <p>Every save creates a timestamped version snapshot. Any collaborator can browse the history and instantly restore to any previous version, preserving who saved it.</p>
+          </div>
+        </div>
+        <div class="unique-item">
+          <div class="u-num">4</div>
+          <div>
+            <h3>Drag-and-Drop File Embedding</h3>
+            <p>Users can drag images or PDFs directly onto the editor — they're automatically uploaded to the server and embedded as Markdown links or images, no copy-paste needed.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════
+       SLIDE 4 — WORKING MODEL
+  ══════════════════════════════════════════════════════ -->
+  <div class="slide bg-working" id="slide-4">
+    <div class="blob" style="width:450px;height:450px;background:var(--purple);top:-120px;left:-80px;opacity:0.2;"></div>
+
+    <div class="stagger" style="width:100%;max-width:1100px;">
+      <div style="text-align:center;margin-bottom:36px;">
+        <div class="badge">03 · Working Model</div>
+        <h2>How Does It <span class="gradient-text">Work?</span></h2>
+        <div class="divider"></div>
+      </div>
+
+      <!-- User flow -->
+      <div class="flow" style="margin-bottom:28px;">
+        <div class="flow-node">
+          <div class="fn-icon">🔐</div>
+          <h3>Register / Login</h3>
+          <p>JWT issued & stored in localStorage</p>
+        </div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-node">
+          <div class="fn-icon">📁</div>
+          <h3>Dashboard</h3>
+          <p>Browse folders & notes. Create new note</p>
+        </div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-node">
+          <div class="fn-icon">✏️</div>
+          <h3>Open Editor</h3>
+          <p>Split Markdown + Preview panes</p>
+        </div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-node">
+          <div class="fn-icon">🔄</div>
+          <h3>Live Sync</h3>
+          <p>Socket.IO broadcasts changes to all peers</p>
+        </div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-node">
+          <div class="fn-icon">💾</div>
+          <h3>Autosave</h3>
+          <p>1.5s debounce → saved to MongoDB</p>
+        </div>
+      </div>
+
+      <!-- Data flow -->
+      <div style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:16px;padding:22px 28px;">
+        <p style="font-size:14px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:var(--purple);margin-bottom:14px;">Real-Time Data Flow</p>
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;">
+          <div style="text-align:center;padding:14px;background:rgba(139,92,246,0.1);border-radius:12px;">
+            <div style="font-size:1.6rem;margin-bottom:6px;">🖥️</div>
+            <p style="font-size:14px;font-weight:600;">User types in Editor</p>
+          </div>
+          <div style="text-align:center;padding:14px;background:rgba(59,130,246,0.1);border-radius:12px;">
+            <div style="font-size:1.6rem;margin-bottom:6px;">📡</div>
+            <p style="font-size:14px;font-weight:600;">Socket.IO event emitted</p>
+          </div>
+          <div style="text-align:center;padding:14px;background:rgba(6,182,212,0.1);border-radius:12px;">
+            <div style="font-size:1.6rem;margin-bottom:6px;">⚡</div>
+            <p style="font-size:14px;font-weight:600;">Server broadcasts to room</p>
+          </div>
+          <div style="text-align:center;padding:14px;background:rgba(34,197,94,0.1);border-radius:12px;">
+            <div style="font-size:1.6rem;margin-bottom:6px;">🔁</div>
+            <p style="font-size:14px;font-weight:600;">All peers update instantly</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════
+       SLIDE 5 — FEATURES
+  ══════════════════════════════════════════════════════ -->
+  <div class="slide bg-features" id="slide-5">
+    <div class="blob" style="width:380px;height:380px;background:var(--cyan);bottom:-80px;left:-60px;opacity:0.12;"></div>
+
+    <div class="stagger" style="width:100%;max-width:1100px;">
+      <div style="text-align:center;margin-bottom:32px;">
+        <div class="badge">04 · Features</div>
+        <h2>Core <span class="gradient-text">Features</span></h2>
+        <div class="divider"></div>
+      </div>
+
+      <div class="card-grid cols-3">
+        <div class="card">
+          <span class="icon">⚡</span>
+          <h3>Real-Time Collaboration</h3>
+          <p>Multiple users edit simultaneously. Typing indicators show when peers are writing. Active user avatars displayed live in the toolbar.</p>
+        </div>
+        <div class="card">
+          <span class="icon">📝</span>
+          <h3>Markdown Editor (Split View)</h3>
+          <p>Write, Split, or Preview modes. Syntax-highlighted Markdown with GitHub Flavoured Markdown (GFM) tables, checkboxes, code blocks.</p>
+        </div>
+        <div class="card">
+          <span class="icon">🕒</span>
+          <h3>Version History</h3>
+          <p>Every save creates a snapshot with timestamp and author. Any version can be restored in one click via a slide-in history drawer.</p>
+        </div>
+        <div class="card">
+          <span class="icon">📁</span>
+          <h3>Folder Organisation</h3>
+          <p>Create, rename, and delete folders. Notes can be moved between folders. Sidebar navigation with instant filter and search.</p>
+        </div>
+        <div class="card">
+          <span class="icon">🎨</span>
+          <h3>Drawing Canvas</h3>
+          <p>Full-screen freehand canvas with colour palette, brush size, eraser, and undo. Drawings auto-upload and insert into the note as images.</p>
+        </div>
+        <div class="card">
+          <span class="icon">🖼️</span>
+          <h3>Image Gallery & File Upload</h3>
+          <p>Browse previously uploaded images in a modal gallery. Drag-and-drop images or PDFs directly onto the editor to embed them instantly.</p>
+        </div>
+        <div class="card">
+          <span class="icon">🔗</span>
+          <h3>Note Sharing</h3>
+          <p>Share any note with other users by username or email. Fine-grained owner vs collaborator access control — only owners can share.</p>
+        </div>
+        <div class="card">
+          <span class="icon">🔐</span>
+          <h3>Secure Authentication</h3>
+          <p>BCrypt password hashing, JWT with 7-day expiry, auto-redirect on 401. All API endpoints protected by Spring Security filter chain.</p>
+        </div>
+        <div class="card">
+          <span class="icon">💾</span>
+          <h3>Autosave</h3>
+          <p>1.5-second debounced autosave triggers after every keystroke. A green checkmark confirms the last saved time without interruption.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════
+       SLIDE 6 — ARCHITECTURE & TECHNOLOGIES
+  ══════════════════════════════════════════════════════ -->
+  <div class="slide bg-arch" id="slide-6">
+    <div class="blob" style="width:400px;height:400px;background:var(--blue);top:-100px;right:-80px;opacity:0.18;"></div>
+
+    <div class="stagger" style="width:100%;max-width:1050px;">
+      <div style="text-align:center;margin-bottom:30px;">
+        <div class="badge">05 · Architecture</div>
+        <h2>Tech Stack & <span class="gradient-text">Architecture</span></h2>
+        <div class="divider"></div>
+      </div>
+
+      <div style="display:flex;flex-direction:column;gap:12px;">
+        <!-- Frontend -->
+        <div class="tech-row">
+          <div class="layer-label">🖥️ Frontend</div>
+          <div class="tech-chips">
+            <span class="chip chip-blue">React 18</span>
+            <span class="chip chip-cyan">Vite 5</span>
+            <span class="chip chip-purple">React Router v6</span>
+            <span class="chip chip-pink">Socket.IO Client</span>
+            <span class="chip chip-orange">ReactMarkdown + remark-gfm</span>
+            <span class="chip chip-green">Axios</span>
+            <span class="chip chip-blue">TailwindCSS</span>
+          </div>
+        </div>
+        <!-- Backend -->
+        <div class="tech-row">
+          <div class="layer-label">⚙️ Backend</div>
+          <div class="tech-chips">
+            <span class="chip chip-green">Spring Boot 3.2</span>
+            <span class="chip chip-blue">Java 17</span>
+            <span class="chip chip-purple">Spring Security</span>
+            <span class="chip chip-pink">JJWT 0.11.5</span>
+            <span class="chip chip-cyan">Spring Data MongoDB</span>
+            <span class="chip chip-orange">Maven</span>
+          </div>
+        </div>
+        <!-- Database -->
+        <div class="tech-row">
+          <div class="layer-label">🗄️ Database</div>
+          <div class="tech-chips">
+            <span class="chip chip-green">MongoDB</span>
+            <span class="chip chip-cyan">DBRef Relations</span>
+            <span class="chip chip-purple">Text Index</span>
+            <span class="chip chip-blue">Embedded Versions</span>
+          </div>
+        </div>
+        <!-- Real-time -->
+        <div class="tech-row">
+          <div class="layer-label">📡 Real-Time</div>
+          <div class="tech-chips">
+            <span class="chip chip-pink">Socket.IO</span>
+            <span class="chip chip-purple">WebSocket / Polling Fallback</span>
+            <span class="chip chip-blue">Room-based Broadcasting</span>
+            <span class="chip chip-cyan">Typing & Presence Events</span>
+          </div>
+        </div>
+        <!-- DevOps -->
+        <div class="tech-row">
+          <div class="layer-label">🛠️ DevOps</div>
+          <div class="tech-chips">
+            <span class="chip chip-orange">Git + GitHub</span>
+            <span class="chip chip-blue">Vite Proxy (dev)</span>
+            <span class="chip chip-purple">Concurrently (mono-repo scripts)</span>
+            <span class="chip chip-green">CORS via Spring Security</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Architecture desc -->
+      <div style="margin-top:16px;display:flex;gap:10px;align-items:center;justify-content:center;">
+        <div style="text-align:center;padding:14px 20px;background:rgba(139,92,246,0.08);border:1px solid rgba(139,92,246,0.2);border-radius:12px;font-size:13px;">
+          <strong style="color:var(--purple);">React SPA</strong><br/>
+          <span style="color:var(--muted);font-size:14px;">Vite Dev Server :5173</span>
+        </div>
+        <div style="color:var(--muted);font-size:14px;text-align:center;">
+          REST API<br/>────→<br/>WebSocket
+        </div>
+        <div style="text-align:center;padding:14px 20px;background:rgba(59,130,246,0.08);border:1px solid rgba(59,130,246,0.2);border-radius:12px;font-size:13px;">
+          <strong style="color:var(--blue);">Spring Boot</strong><br/>
+          <span style="color:var(--muted);font-size:14px;">Tomcat :8080</span>
+        </div>
+        <div style="color:var(--muted);font-size:14px;text-align:center;">
+          Spring Data<br/>────→
+        </div>
+        <div style="text-align:center;padding:14px 20px;background:rgba(34,197,94,0.08);border:1px solid rgba(34,197,94,0.2);border-radius:12px;font-size:13px;">
+          <strong style="color:var(--green);">MongoDB</strong><br/>
+          <span style="color:var(--muted);font-size:14px;">collab-notes DB</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════
+       SLIDE 7 — CONCLUSION
+  ══════════════════════════════════════════════════════ -->
+  <div class="slide bg-conclusion" id="slide-7">
+    <div class="blob" style="width:500px;height:500px;background:var(--purple);top:-150px;right:-100px;opacity:0.2;"></div>
+    <div class="blob" style="width:350px;height:350px;background:var(--pink);bottom:-80px;left:-60px;opacity:0.15;"></div>
+
+    <div class="stagger" style="width:100%;max-width:1000px;">
+      <div style="text-align:center;margin-bottom:28px;">
+        <div class="badge">06 · Conclusion</div>
+        <h2>Summary & <span class="gradient-text-warm">Future Scope</span></h2>
+        <div class="divider"></div>
+        <p class="lead" style="margin:0 auto;">
+          CollabNotes demonstrates a production-grade full-stack architecture —
+          combining real-time communication, secure auth, rich media, and a polished UX
+          in a single cohesive platform.
+        </p>
+      </div>
+
+      <div class="conclusion-grid">
+        <div class="c-card">
+          <div class="c-icon">✅</div>
+          <h3>Achieved</h3>
+          <p>Real-time sync, JWT auth, version history, folders, drawing canvas, image gallery, file uploads, sharing</p>
+        </div>
+        <div class="c-card">
+          <div class="c-icon">📈</div>
+          <h3>Impact</h3>
+          <p>Eliminates email-based sharing and merge conflicts. One URL to share — instant, live collaboration.</p>
+        </div>
+        <div class="c-card">
+          <div class="c-icon">🔮</div>
+          <h3>Future Scope</h3>
+          <p>Offline support (PWA), rich-text editor (WYSIWYG), Google OAuth, export to PDF, AI-powered note summaries</p>
+        </div>
+      </div>
+
+      <div style="margin-top:36px;text-align:center;">
+        <div style="display:inline-flex;gap:12px;flex-wrap:wrap;justify-content:center;">
+          <span class="chip chip-purple">📂 GitHub: vishwaksena-tarala/collab_notes</span>
+          <span class="chip chip-blue">🛠 Spring Boot + React + MongoDB</span>
+          <span class="chip chip-green">🔐 JWT · Socket.IO · Markdown</span>
+        </div>
+        <p style="margin-top:32px;font-size:1.5rem;font-weight:800;">
+          Thank You! <span class="gradient-text">Questions?</span> 🙏
+        </p>
+      </div>
+    </div>
+  </div>
+
+</div><!-- #deck -->
+
+<!-- ─── Navigation ─── -->
+<div id="nav">
+  <button id="btn-prev" onclick="navigate(-1)" disabled>← Prev</button>
+  <div class="dot-nav" id="dots"></div>
+  <span id="slide-counter">1 / 7</span>
+  <button id="btn-next" onclick="navigate(1)">Next →</button>
+</div>
+
+<script>
+  const TOTAL = 7;
+  let current = 0;
+
+  const slides = document.querySelectorAll('.slide');
+  const dotsContainer = document.getElementById('dots');
+  const counter = document.getElementById('slide-counter');
+  const btnPrev = document.getElementById('btn-prev');
+  const btnNext = document.getElementById('btn-next');
+  const progress = document.getElementById('progress');
+  const curLabel = document.getElementById('cur');
+
+  // Build dots
+  for (let i = 0; i < TOTAL; i++) {
+    const d = document.createElement('div');
+    d.className = 'dot' + (i === 0 ? ' active' : '');
+    d.addEventListener('click', () => goTo(i));
+    dotsContainer.appendChild(d);
+  }
+
+  function goTo(idx) {
+    if (idx < 0 || idx >= TOTAL) return;
+    slides[current].classList.remove('active');
+    slides[current].classList.add('exit');
+    setTimeout(() => {
+      slides[current].classList.remove('exit');
+    }, 500);
+    current = idx;
+    slides[current].classList.add('active');
+    updateUI();
+  }
+
+  function navigate(dir) {
+    goTo(current + dir);
+  }
+
+  function updateUI() {
+    counter.textContent = `${current + 1} / ${TOTAL}`;
+    curLabel.textContent = current + 1;
+    btnPrev.disabled = current === 0;
+    btnNext.disabled = current === TOTAL - 1;
+    progress.style.width = `${((current + 1) / TOTAL) * 100}%`;
+    document.querySelectorAll('.dot').forEach((d, i) => {
+      d.classList.toggle('active', i === current);
+    });
+  }
+
+  // Keyboard navigation
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'ArrowRight' || e.key === 'ArrowDown' || e.key === ' ') navigate(1);
+    if (e.key === 'ArrowLeft'  || e.key === 'ArrowUp')                     navigate(-1);
+  });
+
+  updateUI();
+</script>
+</body>
+</html>

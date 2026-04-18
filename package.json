@@ -8,6 +8,8 @@
     "dev:backend": "cd backend-java && mvnw spring-boot:run"
   },
   "devDependencies": {
-    "concurrently": "^8.2.2"
+    "concurrently": "^8.2.2",
+    "pptxgenjs": "^4.0.1",
+    "puppeteer": "^24.41.0"
   }
 }
