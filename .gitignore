@@ -6,4 +6,4 @@ dist/
 backend/uploads/
 backend-java/target/
 .vscode/settings.json
-
+uploads/

@@ -83,7 +83,7 @@ const Dashboard = () => {
 
   // ── Delete note from local state ─────────────────────────────────────
   const handleDeleteNote = (id) => {
-    setNotes((prev) => prev.filter((n) => n._id !== id));
+    setNotes((prev) => prev.filter((n) => (n.id || n._id) !== id));
   };
 
   // ── Folder CRUD ──────────────────────────────────────────────────────
@@ -106,7 +106,7 @@ const Dashboard = () => {
     if (!renamingFolder?.name.trim()) return;
     try {
       const { data } = await foldersAPI.update(id, { name: renamingFolder.name.trim() });
-      setFolders((prev) => prev.map((f) => (f._id === id ? data.folder : f)));
+      setFolders((prev) => prev.map((f) => ((f.id || f._id) === id ? data.folder : f)));
       setRenamingFolder(null);
     } catch {
       toast.error('Failed to rename folder');
@@ -116,9 +116,9 @@ const Dashboard = () => {
   const handleDeleteFolder = async (id) => {
     try {
       await foldersAPI.delete(id);
-      setFolders((prev) => prev.filter((f) => f._id !== id));
+      setFolders((prev) => prev.filter((f) => (f.id || f._id) !== id));
       // Un-folder notes that were in this folder
-      setNotes((prev) => prev.map((n) => (n.folder === id ? { ...n, folder: null } : n)));
+      setNotes((prev) => prev.map((n) => ((n.folder?.id || n.folder?._id || n.folder) === id ? { ...n, folder: null } : n)));
       if (selectedFolder === id) setSelectedFolder(null);
       toast.success('Folder deleted');
     } catch {
@@ -133,10 +133,10 @@ const Dashboard = () => {
     try {
       await notesAPI.move(noteId, folderId);
       setNotes((prev) =>
-        prev.map((n) => (n._id === noteId ? { ...n, folder: folderId } : n))
+        prev.map((n) => ((n.id || n._id) === noteId ? { ...n, folder: folderId } : n))
       );
       const folderName = folderId
-        ? folders.find((f) => f._id === folderId)?.name
+        ? folders.find((f) => (f.id || f._id) === folderId)?.name
         : 'Unfiled';
       toast.success(`Moved to ${folderName}`);
     } catch {
@@ -149,20 +149,23 @@ const Dashboard = () => {
     // Guard: notes must be an array (avoids crash if API shape is unexpected)
     let result = Array.isArray(notes) ? notes : [];
 
+    // Normalize: Spring Boot may return 'id' or '_id' — always use nId() helper
+    const nId  = (n) => n.id || n._id;
+    const ownId = (n) => n.owner?.id || n.owner?._id || n.owner;
+
     if (tab === 'mine') {
-      result = result.filter(
-        (n) => n.owner?._id === user?.id || n.owner === user?.id
-      );
+      result = result.filter((n) => ownId(n) === user?.id);
     } else {
-      result = result.filter(
-        (n) => n.owner?._id !== user?.id && n.owner !== user?.id
-      );
+      result = result.filter((n) => ownId(n) !== user?.id);
     }
 
     if (selectedFolder === 'unfiled') {
       result = result.filter((n) => !n.folder);
     } else if (selectedFolder) {
-      result = result.filter((n) => n.folder === selectedFolder || n.folder?._id === selectedFolder);
+      result = result.filter((n) => {
+        const fId = n.folder?.id || n.folder?._id || n.folder;
+        return fId === selectedFolder;
+      });
     }
 
     if (search.trim()) {
@@ -174,13 +177,13 @@ const Dashboard = () => {
   }, [notes, tab, search, user, selectedFolder]);
 
   const safeNotes   = Array.isArray(notes) ? notes : [];
-  const myCount     = safeNotes.filter((n) => n.owner?._id === user?.id || n.owner === user?.id).length;
-  const sharedCount = safeNotes.filter((n) => n.owner?._id !== user?.id && n.owner !== user?.id).length;
+  const myCount     = safeNotes.filter((n) => (n.owner?.id || n.owner?._id || n.owner) === user?.id).length;
+  const sharedCount = safeNotes.filter((n) => (n.owner?.id || n.owner?._id || n.owner) !== user?.id).length;
 
   const activeFolderLabel = selectedFolder === 'unfiled'
     ? 'Unfiled'
     : selectedFolder
-    ? folders.find((f) => f._id === selectedFolder)?.name || 'Folder'
+    ? folders.find((f) => (f.id || f._id) === selectedFolder)?.name || 'Folder'
     : 'All Notes';
 
   return (
@@ -231,9 +234,9 @@ const Dashboard = () => {
 
           {/* User folders */}
           {folders.map((folder) => (
-            <div key={folder._id} className="group relative">
-              {renamingFolder?.id === folder._id ? (
-                <form onSubmit={(e) => handleRenameFolder(e, folder._id)} className="flex gap-1 px-2">
+            <div key={folder.id || folder._id} className="group relative">
+              {renamingFolder?.id === (folder.id || folder._id) ? (
+                <form onSubmit={(e) => handleRenameFolder(e, folder.id || folder._id)} className="flex gap-1 px-2">
                   <input
                     autoFocus
                     value={renamingFolder.name}
@@ -244,10 +247,10 @@ const Dashboard = () => {
                 </form>
               ) : (
                 <button
-                  id={`folder-${folder._id}`}
-                  onClick={() => setSelectedFolder(folder._id)}
+                  id={`folder-${folder.id || folder._id}`}
+                  onClick={() => setSelectedFolder(folder.id || folder._id)}
                   className={`flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm font-medium w-full text-left transition-colors ${
-                    selectedFolder === folder._id
+                    selectedFolder === (folder.id || folder._id)
                       ? 'bg-brand-600 text-white shadow-sm'
                       : 'text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-800'
                   }`}
@@ -261,7 +264,7 @@ const Dashboard = () => {
                     <span
                       role="button"
                       title="Rename"
-                      onClick={(e) => { e.stopPropagation(); setRenamingFolder({ id: folder._id, name: folder.name }); }}
+                      onClick={(e) => { e.stopPropagation(); setRenamingFolder({ id: folder.id || folder._id, name: folder.name }); }}
                       className="p-0.5 rounded hover:bg-black/10"
                     >
                       <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -271,7 +274,7 @@ const Dashboard = () => {
                     <span
                       role="button"
                       title="Delete folder"
-                      onClick={(e) => { e.stopPropagation(); handleDeleteFolder(folder._id); }}
+                      onClick={(e) => { e.stopPropagation(); handleDeleteFolder(folder.id || folder._id); }}
                       className="p-0.5 rounded hover:bg-red-100 dark:hover:bg-red-900/30 text-red-500"
                     >
                       <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -413,62 +416,70 @@ const Dashboard = () => {
             </div>
           ) : filteredNotes.length > 0 ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
-              {filteredNotes.map((note) => (
-                <div key={note._id} className="relative group">
-                  <NoteCard
-                    note={note}
-                    currentUserId={user?.id}
-                    onDelete={handleDeleteNote}
-                  />
-                  {/* Move to folder dropdown */}
-                  {(note.owner?._id === user?.id || note.owner === user?.id) && (
-                    <div className="absolute top-3 right-10 z-10">
-                      <button
-                        id={`move-note-${note._id}`}
-                        title="Move to folder"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setMoveMenuNoteId((prev) => prev === note._id ? null : note._id);
-                        }}
-                        className="opacity-0 group-hover:opacity-100 transition-opacity p-1.5 rounded-lg bg-white dark:bg-gray-800 shadow border border-gray-200 dark:border-gray-700 text-gray-500 hover:text-brand-600"
-                      >
-                        <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20">
-                          <path d="M2 6a2 2 0 012-2h5l2 2h5a2 2 0 012 2v6a2 2 0 01-2 2H4a2 2 0 01-2-2V6z" />
-                        </svg>
-                      </button>
-                      {moveMenuNoteId === note._id && (
-                        <div
-                          className="absolute right-0 mt-1 w-44 bg-white dark:bg-gray-800 rounded-xl shadow-xl border border-gray-200 dark:border-gray-700 overflow-hidden z-20 animate-fade-in"
-                          onClick={(e) => e.stopPropagation()}
+              {filteredNotes.map((note) => {
+                const nId = note.id || note._id;
+                const isNoteOwner = (note.owner?.id || note.owner?._id || note.owner) === user?.id;
+                return (
+                  <div key={nId} className="relative group">
+                    <NoteCard
+                      note={note}
+                      currentUserId={user?.id}
+                      onDelete={handleDeleteNote}
+                    />
+                    {/* Move to folder dropdown */}
+                    {isNoteOwner && (
+                      <div className="absolute top-3 right-10 z-10">
+                        <button
+                          id={`move-note-${nId}`}
+                          title="Move to folder"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setMoveMenuNoteId((prev) => prev === nId ? null : nId);
+                          }}
+                          className="opacity-0 group-hover:opacity-100 transition-opacity p-1.5 rounded-lg bg-white dark:bg-gray-800 shadow border border-gray-200 dark:border-gray-700 text-gray-500 hover:text-brand-600"
                         >
-                          <p className="text-xs text-gray-400 px-3 pt-2 pb-1 font-medium uppercase tracking-wider">Move to</p>
-                          <button
-                            onClick={(e) => handleMoveNote(note._id, null, e)}
-                            className="w-full text-left px-3 py-1.5 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2"
+                          <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20">
+                            <path d="M2 6a2 2 0 012-2h5l2 2h5a2 2 0 012 2v6a2 2 0 01-2 2H4a2 2 0 01-2-2V6z" />
+                          </svg>
+                        </button>
+                        {moveMenuNoteId === nId && (
+                          <div
+                            className="absolute right-0 mt-1 w-44 bg-white dark:bg-gray-800 rounded-xl shadow-xl border border-gray-200 dark:border-gray-700 overflow-hidden z-20 animate-fade-in"
+                            onClick={(e) => e.stopPropagation()}
                           >
-                            <svg className="w-3.5 h-3.5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                            </svg>
-                            Unfiled
-                          </button>
-                          {folders.map((f) => (
+                            <p className="text-xs text-gray-400 px-3 pt-2 pb-1 font-medium uppercase tracking-wider">Move to</p>
                             <button
-                              key={f._id}
-                              onClick={(e) => handleMoveNote(note._id, f._id, e)}
+                              onClick={(e) => handleMoveNote(nId, null, e)}
                               className="w-full text-left px-3 py-1.5 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2"
                             >
-                              <svg className="w-3.5 h-3.5 text-brand-500" fill="currentColor" viewBox="0 0 20 20">
-                                <path d="M2 6a2 2 0 012-2h5l2 2h5a2 2 0 012 2v6a2 2 0 01-2 2H4a2 2 0 01-2-2V6z" />
+                              <svg className="w-3.5 h-3.5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                               </svg>
-                              <span className="truncate">{f.name}</span>
+                              Unfiled
                             </button>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
-              ))}
+                            {folders.map((f) => {
+                              const fId = f.id || f._id;
+                              return (
+                                <button
+                                  key={fId}
+                                  onClick={(e) => handleMoveNote(nId, fId, e)}
+                                  className="w-full text-left px-3 py-1.5 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2"
+                                >
+                                  <svg className="w-3.5 h-3.5 text-brand-500" fill="currentColor" viewBox="0 0 20 20">
+                                    <path d="M2 6a2 2 0 012-2h5l2 2h5a2 2 0 012 2v6a2 2 0 01-2 2H4a2 2 0 01-2-2V6z" />
+                                  </svg>
+                                  <span className="truncate">{f.name}</span>
+                                </button>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+
             </div>
           ) : (
             /* Empty state */

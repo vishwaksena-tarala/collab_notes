@@ -2,6 +2,7 @@ package com.collabnotes.controller;
 
 import com.collabnotes.model.Note;
 import com.collabnotes.model.User;
+import com.collabnotes.repository.FolderRepository;
 import com.collabnotes.repository.UserRepository;
 import com.collabnotes.service.noteservice.NoteService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -23,6 +24,9 @@ public class NoteController {
 
     @Autowired
     private UserRepository userRepository;
+
+    @Autowired
+    private FolderRepository folderRepository;
 
     // ── Helper: get the authenticated user from the JWT principal ─────────
     private User getCurrentUser() {
@@ -59,6 +63,12 @@ public class NoteController {
         note.setTitle((String) body.getOrDefault("title", "Untitled Note"));
         note.setContent((String) body.getOrDefault("content", ""));
         note.setOwner(user);
+
+        if (body.containsKey("folder") && body.get("folder") != null) {
+            String folderId = (String) body.get("folder");
+            folderRepository.findById(folderId).ifPresent(note::setFolder);
+        }
+
         return ResponseEntity.status(201).body(Map.of("note", noteService.createNote(note)));
     }
 

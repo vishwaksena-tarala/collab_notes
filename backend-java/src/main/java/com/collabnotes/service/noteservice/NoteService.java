@@ -2,12 +2,16 @@ package com.collabnotes.service.noteservice;
 
 import com.collabnotes.model.Note;
 import com.collabnotes.model.User;
+import com.collabnotes.repository.FolderRepository;
 import com.collabnotes.repository.NoteRepository;
 import com.collabnotes.repository.UserRepository;
+import org.bson.types.ObjectId;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -20,6 +24,9 @@ public class NoteService {
 
     @Autowired
     private UserRepository userRepository;
+
+    @Autowired
+    private FolderRepository folderRepository;
 
     // ── Access control (mirrors hasAccess in Express noteController) ──────
     public boolean hasAccess(Note note, String userId) {
@@ -34,7 +41,7 @@ public class NoteService {
     }
 
     public List<Note> getUserNotes(String userId) {
-        return noteRepository.findUserNotes(userId);
+        return noteRepository.findUserNotes(new ObjectId(userId));
     }
 
     public Optional<Note> getNoteById(String noteId) {
@@ -71,8 +78,13 @@ public class NoteService {
             note.setContent(newContent);
         }
         if (body.containsKey("folder")) {
-            // folder can be null (un-folder) or a Folder id string
-            note.setFolder(null); // simplified; to set a real folder, load by id
+            Object folderObj = body.get("folder");
+            if (folderObj == null) {
+                note.setFolder(null); // un-folder
+            } else {
+                String folderId = (String) folderObj;
+                folderRepository.findById(folderId).ifPresent(note::setFolder);
+            }
         }
         note.setUpdatedAt(LocalDateTime.now());
         return noteRepository.save(note);

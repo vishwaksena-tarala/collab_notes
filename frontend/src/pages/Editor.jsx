@@ -238,9 +238,9 @@ const Editor = () => {
   };
 
   // ── Restore version ──────────────────────────────────────────────────
-  const handleRestoreVersion = async (versionId) => {
+  const handleRestoreVersion = async (versionIndex) => {
     try {
-      const { data } = await notesAPI.restoreVersion(noteId, { versionId });
+      const { data } = await notesAPI.restoreVersion(noteId, { versionIndex });
       setContent(data.note.content);
       setTitle(data.note.title);
       setNote(data.note);
@@ -579,7 +579,7 @@ const Editor = () => {
             </div>
             <div className="flex-1 overflow-y-auto p-4 space-y-3">
               {[...(note?.versions || [])].reverse().map((v, idx) => (
-                <div key={v._id} className="bg-gray-50 dark:bg-gray-800/50 rounded-xl p-3">
+                <div key={idx} className="bg-gray-50 dark:bg-gray-800/50 rounded-xl p-3">
                   <div className="flex items-start justify-between gap-2">
                     <div>
                       <p className="text-xs font-medium text-gray-700 dark:text-gray-300">
@@ -593,7 +593,7 @@ const Editor = () => {
                       </p>
                     </div>
                     <button
-                      onClick={() => handleRestoreVersion(v._id)}
+                      onClick={() => handleRestoreVersion(note.versions.length - 1 - idx)}
                       className="btn-secondary text-xs py-1 px-2.5 shrink-0"
                     >
                       Restore

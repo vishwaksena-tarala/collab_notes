@@ -2,12 +2,12 @@ import axios from 'axios';
 
 /**
  * Axios instance pre-configured with base URL.
- * FIX: Changed port from 5000 → 8080 to match Spring Boot default port.
+ * Uses Vite proxy for local development (empty string baseUrl).
  * The request interceptor automatically attaches the JWT
  * from localStorage to every outgoing request.
  */
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || 'http://localhost:8080',
+  baseURL: import.meta.env.VITE_API_URL || '',
   headers: { 'Content-Type': 'application/json' },
   timeout: 10000,
 });
